@@ -1,0 +1,1 @@
+nvcc ./sequential_lanadp.cu -o seq -I /home/student/Desktop/180905330/dcmtk-3.6.6/dcmimgle/include/dcmtk/dcmimgle
