@@ -23,7 +23,7 @@ __device__ int getCircularIndex(int i){
 }
 
 //dichom, dcmtk
-__global__ void LANADP (unsigned int *arr, unsigned char *out,unsigned int rows,unsigned int cols) {
+__global__ void TLBAP (unsigned int *arr, unsigned char *out,unsigned int rows,unsigned int cols) {
     
     
     int global_row = threadIdx.y + blockDim.y * blockIdx.y;

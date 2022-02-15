@@ -1,27 +1,16 @@
 #include <stdio.h>
 #include <cuda.h>
 #include "dcmtk/dcmimgle/dcmimage.h"
+#include <fstream>
 
-int powers[9]={0,1,2,4,8,16,32,64,128};
-
-int getGlobalID(int row,int col,int cols){
-    return row*cols+col;
-}
-
-int getCircularIndex(int i){
-    
-    if (i<1) {
-        return 8 + i;
-    }
-    else if (i>8 )
-      return (i%9 )+1;
-    else 
-      return i;
-  
-}
+int powers[3][3]={
+    {8,4,2},
+    {16,0,1},
+    {32,64,128}
+};
 
 //dichom, dcmtk
-void LANADP (int *arr, unsigned char *out,unsigned int rows,unsigned int cols) {
+void TLBAP (int *arr, unsigned char *out,unsigned int rows,unsigned int cols,float threshold_1) {
     
     for(int global_row=0;global_row<rows;global_row++){
         
@@ -34,37 +23,40 @@ void LANADP (int *arr, unsigned char *out,unsigned int rows,unsigned int cols) {
        
                  else {
                      
-                     int mapping[9];
-                     mapping[1]=arr[getGlobalID(global_row,global_col+1,cols)];
-                     mapping[2]=arr[getGlobalID(global_row-1,global_col+1,cols)];
-                     mapping[3]=arr[getGlobalID(global_row-1,global_col,cols)];
-                     mapping[4]=arr[getGlobalID(global_row-1,global_col-1,cols)];
-                     mapping[5]=arr[getGlobalID(global_row,global_col-1,cols)];
-                     mapping[6]=arr[getGlobalID(global_row+1,global_col-1,cols)];
-                     mapping[7]=arr[getGlobalID(global_row+1,global_col,cols)];
-                     mapping[8]=arr[getGlobalID(global_row+1,global_col+1,cols)];
-       
-       
-                     int ans=0;
-                     for (int i=1;i<=8;i++) {
-                         
-                         float avg1 = ((float)(mapping[getCircularIndex(i+1)] + mapping[getCircularIndex(i+2)]))/2.0;
-                         float avg2 = ((float)(mapping[getCircularIndex(i-1)] + mapping[getCircularIndex(i-2)]))/2.0;
-       
-                         //printf("Number: %d, Avg1: %f, Avg2: %f\n",mapping[i],avg1,avg2);
-       
-                         if (avg1>=(float)mapping[i] && avg2>=(float)mapping[i] || (avg1<=(float)mapping[i] && avg2<=(float)mapping[i]) ){
-                             
-                             //printf("Adding:%d\n",powers[i]);
-                             ans+=powers[i];
-                         }
-                     }
-       
-                     
-       
+                    short int max = arr[(global_row-1)*cols+global_col];
+              
+                    for(int i=global_row-1;i<=global_row+1;i++) {
+                        for(int i1=global_col-1;i1<=global_col+1;i1++){
+                            if(i!=global_row || i1!=global_col){
+                                if(arr[i*cols+i1]>max){
+                                    max=arr[i*cols+i1];
+                                }
+                            }
+                        }
+                    }
+                  
+                    float threshold_2 = threshold_1 * (float)max;
+      
+                    short int ele = arr[global_row*cols + global_col];
+                    //printf("row:%d\tcol:%d\tThres:%f\nMax:%d\n",global_row,global_col,threshold_2,max);
+      
+                    int ans=0;
+                    int power_i=0;
+      
+                    for(int i=global_row-1;i<=global_row+1;i++){
+                        int power_i1=0;
+                        for(int i1=global_col-1; i1<=global_col+1 ;i1++) {
+                            if(i!=global_row || i1!=global_col) {
+                                if(arr[i*cols+i1]>ele && (float)arr[i*cols+i1]>threshold_2) {
+                                    ans+=powers[power_i][power_i1];
+                                }
+                            }
+                            power_i1++;
+                        }
+                        power_i++;
+                    }
+      
                       out[(global_row-1)*(cols-2)+(global_col-1)] = ans;
-       
-       
                      
                    
                        
@@ -127,7 +119,7 @@ int main(int argc, char *argv[]) {
             cudaEventRecord(start, 0);
 
 
-            LANADP(arr,(unsigned char *)output,row,column);
+            TLBAP(arr,(unsigned char *)output,row,column,0.9);
         
             cudaEventRecord(stop, 0);
             cudaEventSynchronize (stop);
@@ -146,10 +138,12 @@ int main(int argc, char *argv[]) {
             //     }
             //     printf("\n");
             // }
+
             std::ofstream outfile;
 
-            outfile.open("sequential_lanadp.txt", std::ios_base::app); // append instead of overwrite
+            outfile.open("tlbap_sequential.txt", std::ios_base::app); // append instead of overwrite
             outfile <<argv[1]<<": " <<elapsed<<"\n"; 
+
 
 
 

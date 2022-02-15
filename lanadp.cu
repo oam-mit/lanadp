@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <cuda.h>
 #include "dcmtk/dcmimgle/dcmimage.h"
 
@@ -22,9 +23,9 @@ __device__ int getCircularIndex(int i){
 }
 
 //dichom, dcmtk
-__global__ void LANADP (int *arr, unsigned char *out,unsigned int rows,unsigned int cols) {
+__global__ void LANADP (unsigned int *arr, unsigned char *out,unsigned int rows,unsigned int cols) {
     
-    
+   // printf("Yes");
     int global_row = threadIdx.y + blockDim.y * blockIdx.y;
     int global_col = threadIdx.x + blockDim.x * blockIdx.x;
 
@@ -39,6 +40,7 @@ __global__ void LANADP (int *arr, unsigned char *out,unsigned int rows,unsigned 
             //             printf("\n");
             //         }
             //    }
+	  // printf("ID: %d\n",getGlobalID(global_row,global_col+1,cols));
         }
 
           else {
@@ -87,11 +89,11 @@ __global__ void LANADP (int *arr, unsigned char *out,unsigned int rows,unsigned 
 }
 
 
-int main() {
+int main(int argc, char *argv[]) {
 
     int row,column;
     
-    DicomImage *img=new DicomImage("512x512CT.dcm");
+    DicomImage *img=new DicomImage(argv[1]);
     
 
     if(img != NULL && img->getStatus()==EIS_Normal) {
@@ -105,21 +107,21 @@ int main() {
 
            
 
-            int *arr = new int [row*column];
+            unsigned int *arr = new unsigned int [row*column];
 
             printf("Rows: %d\tColumns:%d\n",row,column);
 
-            img->getOutputData(arr,row*column*sizeof(int));
+            img->getOutputData(arr,row*column*sizeof(unsigned int));
 
             unsigned char output[row-2][column-2];
 
             int output_rows=row-2,output_colums=column-2;
 
-            int size_arr = row*column*sizeof(int);
+            int size_arr = row*column*sizeof(unsigned int);
             int size_out = output_rows*output_colums*sizeof(unsigned char);
 
             //memory variables
-            int *d_arr; 
+            unsigned int *d_arr; 
             unsigned char *d_output;
 
             //allocating memory
@@ -129,9 +131,16 @@ int main() {
             //copying data
             cudaMemcpy(d_arr,arr,size_arr,cudaMemcpyHostToDevice); 
 
+	//     float no_threads;
+	// 	printf("Enter threads\n");
+	// scanf("%f",&no_threads);
+
 
             dim3 numberOfBlocks(ceil((float)row/16.0),ceil((float)column/16.0),1);
             dim3 numberOfThreads(16,16,1);
+
+	// printf("\n%d %d %d",numberOfBlocks.x,numberOfBlocks.y,numberOfBlocks.z);
+	// printf("\n%d %d %d",numberOfThreads.x,numberOfThreads.y,numberOfThreads.z);
         
             float elapsed=0;
             cudaEvent_t start, stop;
@@ -141,8 +150,8 @@ int main() {
 
             cudaEventRecord(start, 0);
 
-
-            LANADP<<<numberOfBlocks,numberOfThreads>>>(d_arr,d_output,row,column);
+            for(int i=1;i<=100;i++)
+               LANADP<<<numberOfBlocks,numberOfThreads>>>(d_arr,d_output,row,column);
         
             cudaEventRecord(stop, 0);
             cudaEventSynchronize (stop);
@@ -162,6 +171,12 @@ int main() {
             //     }
             //     printf("\n");
             // }
+
+            std::ofstream outfile;
+
+            outfile.open("lanadp_without_shared.txt", std::ios_base::app); // append instead of overwrite
+            outfile <<argv[1]<<": " <<elapsed<<"\n"; 
+
 
 
         }
