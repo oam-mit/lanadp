@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
             cudaMemcpy(d_arr,arr,size_arr,cudaMemcpyHostToDevice); 
 
 
-            dim3 numberOfBlocks(ceil((float)(row-2)/16.0),ceil((float)(column-2)/16.0),1);
+            dim3 numberOfBlocks(ceil((float)(row-2)/(float)NUMBER_OF_THREADS),ceil((float)(column-2)/(float)NUMBER_OF_THREADS),1);
             dim3 numberOfThreads(NUMBER_OF_THREADS,NUMBER_OF_THREADS,1);
         
             float elapsed=0;
@@ -228,9 +228,8 @@ int main(int argc, char *argv[]) {
 
             std::ofstream outfile;
 
-            outfile.open("lanadp_shared.txt", std::ios_base::app); // append instead of overwrite
-            outfile <<argv[1]<<": " <<elapsed<<"\n"; 
-
+            outfile.open("readings/lanadp_shared.csv", std::ios_base::app); // append instead of overwrite
+            outfile <<argv[1]<<","<< NUMBER_OF_THREADS<<","<<elapsed<<"\n"; 
 
 
         }

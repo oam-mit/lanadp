@@ -141,9 +141,8 @@ int main(int argc, char *argv[]) {
 
             std::ofstream outfile;
 
-            outfile.open("tlbap_sequential.txt", std::ios_base::app); // append instead of overwrite
-            outfile <<argv[1]<<": " <<elapsed<<"\n"; 
-
+            outfile.open("readings/tlbap/sequential_tlbap.csv", std::ios_base::app); // append instead of overwrite
+            outfile <<argv[1]<<","<< elapsed<<"\n"; 
 
 
 

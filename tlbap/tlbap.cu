@@ -117,8 +117,8 @@ int main(int argc, char *argv[]) {
 	// scanf("%f",&no_threads);
 
 
-            dim3 numberOfBlocks(ceil((float)row/16.0),ceil((float)column/16.0),1);
-            dim3 numberOfThreads(16,16,1);
+            dim3 numberOfBlocks(ceil((float)row/atof(argv[2])),ceil((float)column/atof(argv[2])),1);
+            dim3 numberOfThreads(atoi(argv[2]),atoi(argv[2]),1);
 
         
             float elapsed=0;
@@ -150,11 +150,10 @@ int main(int argc, char *argv[]) {
             //     }
             //     printf("\n");
             // }
-
             std::ofstream outfile;
 
-            outfile.open("tlbap_without_shared.txt", std::ios_base::app); // append instead of overwrite
-            outfile <<argv[1]<<": " <<elapsed<<"\n"; 
+            outfile.open("readings/tlbap/tlbap.csv", std::ios_base::app); // append instead of overwrite
+            outfile <<argv[1]<<","<< argv[2]<<","<<elapsed<<"\n"; 
 
 
         }

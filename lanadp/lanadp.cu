@@ -184,8 +184,8 @@ int main(int argc, char *argv[]) {
 
             std::ofstream outfile;
 
-            outfile.open("lanadp_without_shared.txt", std::ios_base::app); // append instead of overwrite
-            outfile <<argv[1]<<": " <<elapsed<<"\n"; 
+            outfile.open("readings/lanadp.csv", std::ios_base::app); // append instead of overwrite
+            outfile <<argv[1]<<","<< argv[2]<<","<<elapsed<<"\n"; 
 
 
 

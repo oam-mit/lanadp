@@ -148,8 +148,8 @@ int main(int argc, char *argv[]) {
             // }
             std::ofstream outfile;
 
-            outfile.open("sequential_lanadp.txt", std::ios_base::app); // append instead of overwrite
-            outfile <<argv[1]<<": " <<elapsed<<"\n"; 
+            outfile.open("readings/sequential_lanadp.csv", std::ios_base::app); // append instead of overwrite
+            outfile <<argv[1]<<","<< elapsed<<"\n"; 
 
 
 
