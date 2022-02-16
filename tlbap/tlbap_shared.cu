@@ -2,7 +2,12 @@
 #include <cuda.h>
 #include "dcmtk/dcmimgle/dcmimage.h"
 
-__constant__ int powers[9]={0,1,2,4,8,16,32,64,128};
+__constant__ int powers[3][3]={
+    {8,4,2},
+    {16,0,1},
+    {32,64,128}
+};
+
 
 #define NUMBER_OF_THREADS 16
 
@@ -23,7 +28,7 @@ __device__ int getCircularIndex(int i){
 }
 
 //dichom, dcmtk
-__global__ void TLBAP (unsigned int *arr, unsigned char *out,unsigned int rows,unsigned int cols) {
+__global__ void TLBAP (unsigned int *arr, unsigned char *out,unsigned int rows,unsigned int cols,float threshold_1) {
     
     
     int global_row = threadIdx.y + blockDim.y * blockIdx.y;
@@ -32,7 +37,13 @@ __global__ void TLBAP (unsigned int *arr, unsigned char *out,unsigned int rows,u
     global_row++;
     global_col++;
 
+
+    int shared_no_of_rows = NUMBER_OF_THREADS+2;
+    int shared_no_of_cols = NUMBER_OF_THREADS+2;
+
     __shared__ short int shared_data[NUMBER_OF_THREADS+2][NUMBER_OF_THREADS+2];
+
+    
 
     int local_row = threadIdx.y;
     int local_col = threadIdx.x;
@@ -87,7 +98,9 @@ __global__ void TLBAP (unsigned int *arr, unsigned char *out,unsigned int rows,u
         //if last column load elements to right
         shared_data[shared_row][shared_col+1] = arr[getGlobalID(global_row,global_col+1,cols)];
     }
-	 
+    global_row--;
+    global_col--;
+
     __syncthreads();
 
   /*for (int i=0;i<3;i++){
@@ -97,49 +110,62 @@ __global__ void TLBAP (unsigned int *arr, unsigned char *out,unsigned int rows,u
       printf("\n");
   }*/
 
+  if(global_row <rows && global_col<cols){
+    if(global_row == 0 ||global_col ==0 || global_col==cols-1 || global_row==rows-1 ){
+   //do nothing
+   }
+
+     else {
+         
+         short int max = shared_data[(shared_row-1)][shared_col];
+         
+         for(int i=shared_row-1;i<=shared_row+1;i++) {
+             for(int i1=shared_col-1;i1<=shared_col+1;i1++){
+                 if(i!=shared_row || i1!=shared_col){
+                     if(shared_data[i][i1]>max){
+                         max=shared_data[i][i1];
+                     }
+                 }
+             }
+         }
+       
+         float threshold_2 = threshold_1 * (float)max;
+
+         short int ele = shared_data[shared_row][shared_col];
+         //printf("row:%d\tcol:%d\tThres:%f\nMax:%d\n",global_row,global_col,threshold_2,max);
+
+         int ans=0;
+         int power_i=0;
+
+         for(int i=shared_row-1;i<=shared_row+1;i++){
+             int power_i1=0;
+             for(int i1=shared_col-1; i1<=shared_col+1 ;i1++) {
+                 if(i!=shared_row || i1!=shared_col) {
+                     if(shared_data[i][i1]>ele && (float)shared_data[i][i1]>threshold_2) {
+                         ans+=powers[power_i][power_i1];
+                     }
+                 }
+                 power_i1++;
+             }
+             power_i++;
+         }
+
+           out[(global_row-1)*(cols-2)+(global_col-1)] = ans;
+           
+   }
+}
+
+
+
+
+
  
        
 
 
     
-    int mapping[9];
-    mapping[1] = shared_data[shared_row][shared_col+1];
-    mapping[2] = shared_data[shared_row-1][shared_col+1];
-    mapping[3] = shared_data[shared_row-1][shared_col];
-    mapping[4] = shared_data[shared_row-1][shared_col-1];
-    mapping[5] = shared_data[shared_row][shared_col-1];
-    mapping[6] = shared_data[shared_row+1][shared_col-1];
-    mapping[7] = shared_data[shared_row+1][shared_col];
-    mapping[8] = shared_data[shared_row+1][shared_col+1];
-
-    /* mapping[1]=shared_arr[getGlobalID(global_row,global_col+1,cols)];
-    mapping[2]=shared_arr[getGlobalID(global_row-1,global_col+1,cols)];
-    mapping[3]=shared_arr[getGlobalID(global_row-1,global_col,cols)];
-    mapping[4]=shared_arr[getGlobalID(global_row-1,global_col-1,cols)];
-    mapping[5]=shared_arr[getGlobalID(global_row,global_col-1,cols)];
-    mapping[6]=shared_arr[getGlobalID(global_row+1,global_col-1,cols)];
-    mapping[7]=shared_arr[getGlobalID(global_row+1,global_col,cols)];
-    mapping[8]=shared_arr[getGlobalID(global_row+1,global_col+1,cols)];*/
-
-
-    int ans=0;
-    for (int i=1;i<=8;i++) {
-        
-        float avg1 = ((float)(mapping[getCircularIndex(i+1)] + mapping[getCircularIndex(i+2)]))/2.0;
-        float avg2 = ((float)(mapping[getCircularIndex(i-1)] + mapping[getCircularIndex(i-2)]))/2.0;
-
-        //printf("Number: %d, Avg1: %f, Avg2: %f\n",mapping[i],avg1,avg2);
-
-        if (avg1>=(float)mapping[i] && avg2>=(float)mapping[i] || (avg1<=(float)mapping[i] && avg2<=(float)mapping[i]) ){
-            
-            //printf("Adding:%d\n",powers[i]);
-            ans+=powers[i];
-        }
-    }
-
     
 
-    out[(global_row-1)*(cols-2)+(global_col-1)] = ans;
 
 
               
@@ -205,7 +231,7 @@ int main(int argc, char *argv[]) {
             cudaEventRecord(start, 0);
 
             for(int i=1;i<=50;i++)
-                LANADP<<<numberOfBlocks,numberOfThreads>>>(d_arr,d_output,row,column);
+                TLBAP<<<numberOfBlocks,numberOfThreads>>>(d_arr,d_output,row,column,0.9);
         
             cudaEventRecord(stop, 0);
             cudaEventSynchronize (stop);
@@ -228,7 +254,7 @@ int main(int argc, char *argv[]) {
 
             std::ofstream outfile;
 
-            outfile.open("lanadp_shared.txt", std::ios_base::app); // append instead of overwrite
+            outfile.open("tlbap_shared.txt", std::ios_base::app); // append instead of overwrite
             outfile <<argv[1]<<": " <<elapsed<<"\n"; 
 
 

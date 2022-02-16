@@ -135,9 +135,11 @@ int main(int argc, char *argv[]) {
 	// 	printf("Enter threads\n");
 	// scanf("%f",&no_threads);
 
+    printf("Number of threads %s\n",argv[2]);
 
-            dim3 numberOfBlocks(ceil((float)row/16.0),ceil((float)column/16.0),1);
-            dim3 numberOfThreads(16,16,1);
+
+            dim3 numberOfBlocks(ceil((float)row/atof(argv[2])),ceil((float)column/atof(argv[2])),1);
+            dim3 numberOfThreads(atoi(argv[2]),atoi(argv[2]),1);
 
 	// printf("\n%d %d %d",numberOfBlocks.x,numberOfBlocks.y,numberOfBlocks.z);
 	// printf("\n%d %d %d",numberOfThreads.x,numberOfThreads.y,numberOfThreads.z);
@@ -152,6 +154,14 @@ int main(int argc, char *argv[]) {
 
             for(int i=1;i<=100;i++)
                LANADP<<<numberOfBlocks,numberOfThreads>>>(d_arr,d_output,row,column);
+            
+            cudaError_t err = cudaGetLastError();        // Get error code
+
+            if ( err != cudaSuccess )
+            {
+                printf("CUDA Error: %s\n", cudaGetErrorString(err));
+                exit(-1);
+            }
         
             cudaEventRecord(stop, 0);
             cudaEventSynchronize (stop);
